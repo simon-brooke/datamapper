@@ -1,5 +1,6 @@
 (ns datamapper.core
   (:require
+    [clojure.string :refer [capitalize]]
     [day8.re-frame.http-fx]
     [reagent.core :as r]
     [re-frame.core :as rf]
@@ -8,6 +9,7 @@
     [markdown.core :refer [md->html]]
     [datamapper.ajax :as ajax]
     [datamapper.events]
+    [datamapper.views.map :as maps]
     [reitit.core :as reitit]
     [reitit.frontend.easy :as rfe]
     [clojure.string :as string])
@@ -18,6 +20,39 @@
    {:href   uri
     :class (when (= page @(rf/subscribe [:page])) :is-active)}
    title])
+
+(defn about-page []
+  [:section.section>div.container>div.content
+   [:img {:src "/img/warning_clojure.png"}]])
+
+(defn map-page
+    "Return the content for the main map page. Map showing current location."
+  []
+  (maps/panel))
+
+(defn home-page []
+  [:section.section>div.container>div.content
+   (when-let [docs @(rf/subscribe [:docs])]
+     [:div {:dangerouslySetInnerHTML {:__html (md->html docs)}}])])
+
+(def pages
+  {:home #'home-page
+   :map #'map-page
+   :about #'about-page})
+
+(defn auto-nav
+  "Automatically create a navbar for all the pages we know about."
+  []
+  (apply vector
+    (cons
+      :div.navbar-start
+      (map
+        #(apply vector
+           (list
+             (str "#/" (if (= % :home) "" (name %)))
+             (capitalize (name %))
+             %))
+        (keys pages)))))
 
 (defn navbar []
   (r/with-let [expanded? (r/atom false)]
@@ -31,22 +66,7 @@
        [:span][:span][:span]]]
      [:div#nav-menu.navbar-menu
       {:class (when @expanded? :is-active)}
-      [:div.navbar-start
-       [nav-link "#/" "Home" :home]
-       [nav-link "#/about" "About" :about]]]]))
-
-(defn about-page []
-  [:section.section>div.container>div.content
-   [:img {:src "/img/warning_clojure.png"}]])
-
-(defn home-page []
-  [:section.section>div.container>div.content
-   (when-let [docs @(rf/subscribe [:docs])]
-     [:div {:dangerouslySetInnerHTML {:__html (md->html docs)}}])])
-
-(def pages
-  {:home #'home-page
-   :about #'about-page})
+      (auto-nav)]]))
 
 (defn page []
   (if-let [page @(rf/subscribe [:page])]
